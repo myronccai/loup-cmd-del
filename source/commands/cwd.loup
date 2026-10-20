@@ -1,0 +1,71 @@
+@mode(host.dual)
+
+# Absolute paths for messages: Windows prints full paths (`C:\t\a.txt`),
+# and Loup 1.26.0 has no getcwd().
+
+from io.fs import (isDir, listDir);
+from win.paths import (fs_path, is_absolute_path, join_path, path_components);
+from win.wildcard import (sort_names);
+
+# `path` with `.` and `..` resolved and duplicate separators removed. The
+# path must be absolute.
+pub func normalize_absolute(path: string): string {
+    var stack: list[string] = [];
+    for (part in path_components(path)) {
+        if (part == ".") {
+            continue;
+        }
+        if (part == "..") {
+            if (stack.len() > 0) {
+                stack.pop();
+            }
+            continue;
+        }
+        stack.push(part);
+    }
+    return "/" + stack.join("/");
+}
+
+# The absolute form of `path` (either separator) against `cwd`. Without a
+# known `cwd`, a relative path is returned in fs form, as typed.
+pub func absolute_path(path: string, cwd: string): string {
+    if (is_absolute_path(path)) {
+        return normalize_absolute(fs_path(path));
+    }
+    if (cwd.len() == 0) {
+        return fs_path(path);
+    }
+    return normalize_absolute(join_path(cwd, path));
+}
+
+func same_names(a: string, b: string): bool {
+    let x = sort_names(listDir(a));
+    let y = sort_names(listDir(b));
+    if (x.len() != y.len()) {
+        return false;
+    }
+    for (i in 0..x.len()) {
+        if (x[i] != y[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+# The absolute current directory: $PWD when it plausibly is the current
+# directory, else the output of `pwd`, else "".
+pub func current_dir(): string {
+    let pwd = env("PWD") ?? "";
+    if (pwd.startsWith("/") and isDir(pwd) and same_names(pwd, ".")) {
+        return pwd;
+    }
+    let r = exec(["pwd"]);
+    if (r.exit_code != 0) {
+        return "";
+    }
+    let text = r.stdout.to_string().trim();
+    if (text.startsWith("/")) {
+        return text;
+    }
+    return "";
+}

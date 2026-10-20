@@ -1,0 +1,171 @@
+@mode(host.dual)
+
+# del (and erase): deletes files. An operand is a file, a pattern, or a
+# directory (meaning every file in it); /S repeats it in every
+# subdirectory. Directories themselves are never deleted. Planning is pure;
+# run_del asks, deletes and prints.
+#
+# (The module is not called `del`: that is a reserved word in Loup.)
+
+from appinfo import (EXIT_OK, EXIT_FAILURE);
+from cli.args import (Options);
+from commands.cwd import (absolute_path, current_dir);
+from commands.prompt import (ask_yes_no, delete_question, sure_question);
+from io.fs import (exists, isDir, isFile, remove);
+from win.messages import (MSG_ACCESS_DENIED, MSG_INVALID_NAME, MSG_PATH_NOT_FOUND, MSG_SYNTAX);
+from win.paths import (display_path, fs_path, join_path, split_path, strip_trailing_separators);
+from win.wildcard import (MATCH_FILES, has_wildcards, list_matches, walk_dirs, wildcard_in_directory);
+
+# What one operand asks for.
+pub struct Target {
+    pub dir: string;          # fs form; "" is the current directory
+    pub pattern: string;      # a name or a pattern in `dir`
+    pub everything: bool;     # a directory, `*` or `*.*`: ask "Are you sure"
+    pub error: string;        # "" or the message for the operand
+}
+
+func make_target(dir: string, pattern: string, everything: bool, error: string): Target {
+    return Target(dir = dir, pattern = pattern, everything = everything, error = error);
+}
+
+# Splits an operand into a directory and a pattern. A directory operand
+# means every file in it.
+pub func plan_target(op: string): Target {
+    if (wildcard_in_directory(op)) {
+        return make_target("", "", false, MSG_INVALID_NAME);
+    }
+    let p = strip_trailing_separators(fs_path(op));
+    if (p.len() > 0 and !has_wildcards(p) and isDir(p)) {
+        return make_target(p, "*", true, "");
+    }
+    let parts = split_path(fs_path(op));
+    if (parts.name.len() == 0 or (parts.dir.len() > 0 and !isDir(parts.dir))) {
+        return make_target(parts.dir, parts.name, false, MSG_PATH_NOT_FOUND);
+    }
+    let everything = parts.name == "*" or parts.name == "*.*";
+    return make_target(parts.dir, parts.name, everything, "");
+}
+
+# The files a target names, in `/S` order with `recurse`. A pattern matches
+# names in any case; a plain name must match exactly (Linux names are
+# case-sensitive).
+pub func find_files(t: Target, recurse: bool): list[string] {
+    var dirs: list[string] = [t.dir];
+    if (recurse) {
+        dirs = walk_dirs(t.dir);
+    }
+    var out: list[string] = [];
+    let wild = has_wildcards(t.pattern);
+    for (d in dirs) {
+        if (wild) {
+            for (name in list_matches(d, t.pattern, MATCH_FILES)) {
+                out.push(join_path(d, name));
+            }
+        } else {
+            let p = join_path(d, t.pattern);
+            if (isFile(p)) {
+                out.push(p);
+            }
+        }
+    }
+    return out;
+}
+
+# Whether a file passes an /A value: R is read-only; no file is hidden,
+# system, archive, ... on Linux.
+pub func attrs_match(spec: string, read_only: bool): bool {
+    var negate = false;
+    for (ch in spec) {
+        if (ch == "-") {
+            negate = true;
+            continue;
+        }
+        let has = if (ch == "R") { read_only } else { false };
+        if (has == negate) {
+            return false;
+        }
+        negate = false;
+    }
+    return true;
+}
+
+# Whether a file is read-only for us (Loup has no stat(): ask `test -w`).
+pub func is_read_only(path: string): bool {
+    let r = exec(["test", "-w", path]);
+    return r.exit_code != 0;
+}
+
+# Deletes one file (or a symbolic link, not its target); true when it is
+# gone. Native builds fail silently and Stage0 throws: check the disk.
+pub func delete_file(path: string): bool {
+    try {
+        remove(path);
+    } catch (Exception as e) {
+    }
+    return !exists(path) and !isFile(path);
+}
+
+pub func msg_could_not_find(display: string): string {
+    return "Could Not Find " + display;
+}
+
+pub func msg_deleted(display: string): string {
+    return "Deleted file - " + display;
+}
+
+# Deletes what one operand names. Messages only: del's status is 0.
+func delete_target(t: Target, opts: Options, cwd: string): void {
+    var files = find_files(t, opts.recurse);
+    if (opts.attrs.len() > 0) {
+        let check_ro = opts.attrs.index_of("R") >= 0;
+        var kept: list[string] = [];
+        for (f in files) {
+            let ro = if (check_ro) { is_read_only(f) } else { false };
+            if (attrs_match(opts.attrs, ro)) {
+                kept.push(f);
+            }
+        }
+        files = kept;
+    }
+    let named = display_path(absolute_path(join_path(t.dir, t.pattern), cwd));
+    if (files.len() == 0) {
+        printErr(msg_could_not_find(named));
+        return;
+    }
+    if (t.everything and !opts.quiet and !opts.ask_each) {
+        if (!ask_yes_no(sure_question(named))) {
+            return;
+        }
+    }
+    for (f in files) {
+        let shown = display_path(absolute_path(f, cwd));
+        if (opts.ask_each and !ask_yes_no(delete_question(shown))) {
+            continue;
+        }
+        if ((!opts.force and is_read_only(f)) or !delete_file(f)) {
+            printErr(shown);
+            printErr(MSG_ACCESS_DENIED);
+            continue;
+        }
+        if (opts.recurse) {
+            println(msg_deleted(shown));
+        }
+    }
+}
+
+pub func run_del(opts: Options): int {
+    if (opts.operands.len() == 0) {
+        printErr(MSG_SYNTAX);
+        return EXIT_FAILURE;
+    }
+    let cwd = current_dir();
+    for (op in opts.operands) {
+        let t = plan_target(op);
+        if (t.error.len() > 0) {
+            printErr(t.error);
+            continue;
+        }
+        delete_target(t, opts, cwd);
+    }
+    return EXIT_OK;
+}

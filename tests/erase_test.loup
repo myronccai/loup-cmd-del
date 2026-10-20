@@ -1,0 +1,72 @@
+@mode(host.dual)
+
+# Tests for planning and deleting (commands/erase.loup). Each test builds
+# its own tree under build/tmp/ and deletes only there.
+
+from debug.assert import (expect, expectEq);
+from io.fs import (createDir, writeText, removeDir, isDir, isFile, exists);
+from win.messages import (MSG_INVALID_NAME, MSG_PATH_NOT_FOUND);
+from commands.erase import (plan_target, find_files, attrs_match, delete_file, msg_could_not_find,
+    msg_deleted);
+
+func make_tree(root: string): void {
+    if (isDir(root)) {
+        removeDir(root);
+    }
+    createDir(root + "/sub/deep");
+    writeText(root + "/a.txt", "a\n");
+    writeText(root + "/B.TXT", "b\n");
+    writeText(root + "/c.log", "c\n");
+    writeText(root + "/sub/a.txt", "sa\n");
+    writeText(root + "/sub/deep/a.txt", "da\n");
+}
+
+func test_plan_target(): void {
+    let root = "build/tmp/del_plan";
+    make_tree(root);
+    let lit = plan_target(root + "\\a.txt");
+    expectEq(lit.dir, root, "directory");
+    expectEq(lit.pattern, "a.txt", "name");
+    expect(!lit.everything, "one file");
+    let dir = plan_target(root + "/sub/");
+    expectEq(dir.dir, root + "/sub", "a directory operand");
+    expectEq(dir.pattern, "*", "means every file");
+    expect(dir.everything, "asks first");
+    expect(plan_target(root + "/*.*").everything, "*.* asks");
+    expect(!plan_target(root + "/*.txt").everything, "*.txt does not");
+    expectEq(plan_target(root + "/no/x").error, MSG_PATH_NOT_FOUND, "missing directory");
+    expectEq(plan_target(root + "/s*/x").error, MSG_INVALID_NAME, "wildcard in a directory");
+    removeDir(root);
+}
+
+func test_find_files(): void {
+    let root = "build/tmp/del_find";
+    make_tree(root);
+    expectEq(find_files(plan_target(root + "/*.txt"), false).join(","), root + "/a.txt," + root + "/B.TXT", "pattern, any case");
+    expectEq(find_files(plan_target(root + "/b.txt"), false).len(), 0, "a plain name is exact");
+    let deep = find_files(plan_target(root + "/a.txt"), true);
+    expectEq(deep.join(","), root + "/a.txt," + root + "/sub/a.txt," + root + "/sub/deep/a.txt", "/S order");
+    expectEq(find_files(plan_target(root + "/sub"), false).join(","), root + "/sub/a.txt", "files only");
+    removeDir(root);
+}
+
+func test_attrs_match(): void {
+    expect(attrs_match("", true) and attrs_match("", false), "no filter");
+    expect(attrs_match("R", true) and !attrs_match("R", false), "R");
+    expect(!attrs_match("-R", true) and attrs_match("-R", false), "-R");
+    expect(!attrs_match("H", false) and attrs_match("-H", false), "nothing is hidden");
+}
+
+func test_delete_file(): void {
+    let root = "build/tmp/del_delete";
+    make_tree(root);
+    expect(delete_file(root + "/a.txt"), "deleted");
+    expect(!exists(root + "/a.txt"), "gone");
+    expect(isFile(root + "/B.TXT"), "the others stay");
+    removeDir(root);
+}
+
+func test_messages(): void {
+    expectEq(msg_could_not_find("\\t\\x.txt"), "Could Not Find \\t\\x.txt", "not found");
+    expectEq(msg_deleted("\\t\\a.txt"), "Deleted file - \\t\\a.txt", "deleted");
+}

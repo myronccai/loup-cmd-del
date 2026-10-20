@@ -1,0 +1,20 @@
+@mode(host.dual)
+
+from debug.assert import (expect, expectEq);
+from commands.cwd import (normalize_absolute, absolute_path, current_dir);
+
+func test_normalize_absolute(): void {
+    expectEq(normalize_absolute("/a/./b/../c//d/"), "/a/c/d", "dots and separators");
+    expectEq(normalize_absolute("/.."), "/", "above the root");
+}
+
+func test_absolute_path(): void {
+    expectEq(absolute_path("x\\y.txt", "/home/me"), "/home/me/x/y.txt", "relative");
+    expectEq(absolute_path("..\\y", "/home/me"), "/home/y", "parent");
+    expectEq(absolute_path("/t/./a", "/home/me"), "/t/a", "absolute");
+    expectEq(absolute_path("x\\y", ""), "x/y", "unknown current directory");
+}
+
+func test_current_dir_is_absolute(): void {
+    expect(current_dir().startsWith("/"), "absolute");
+}

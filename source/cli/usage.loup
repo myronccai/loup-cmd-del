@@ -1,28 +1,28 @@
 @mode(host.dual)
 
-from appinfo import (APP_NAME, APP_VERSION, APP_SUMMARY);
-from cli.args import (DEFAULT_GREETING);
+from appinfo import (APP_NAME, APP_VERSION);
 
+# The text of `del /?`: a short summary of this recreation's syntax and
+# switches.
 pub func usage(): string {
     let lines = [
-        i"usage: {$ APP_NAME $} [OPTIONS] COMMAND [ARGS...]",
+        "Delete files.",
         "",
-        APP_SUMMARY,
+        "DEL [/P] [/F] [/S] [/Q] [/A[[:]attrs]] name [name ...]",
+        "ERASE is the same command.",
         "",
-        "Commands:",
-        "  hello [NAME]          Print a greeting (NAME defaults to 'world')",
-        "  help                  Show this help",
-        "",
-        "Options:",
-        i"  -g, --greeting TEXT   Greeting used by 'hello' (default: {$ DEFAULT_GREETING $})",
-        "      --shout           Print the greeting in upper case",
-        "  -v, --verbose         Print diagnostic messages to stderr",
-        "  -h, --help            Show this help and exit",
-        "  -V, --version         Show the version and exit",
+        "  name      A file, a pattern with * and ?, or a directory (its files).",
+        "  /P        Ask before deleting each file.",
+        "  /F        Delete read-only files too.",
+        "  /S        Also delete matching files in every subdirectory, and",
+        "            print each file deleted.",
+        "  /Q        Do not ask before deleting every file of a directory.",
+        "  /A[attrs] Only files with these attributes: R = read-only,",
+        "            -R = writable (a - before a letter negates it).",
     ];
     return lines.join("\n");
 }
 
 pub func version_line(): string {
-    return i"{$ APP_NAME $} {$ APP_VERSION $}";
+    return i"{$ APP_NAME $} (loup-cmd-{$ APP_NAME $}) {$ APP_VERSION $}";
 }
