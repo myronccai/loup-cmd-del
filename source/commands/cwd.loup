@@ -1,7 +1,11 @@
 @mode(host.dual)
 
-# Absolute paths for messages: Windows prints full paths (`C:\t\a.txt`),
-# and Loup 1.26.0 has no getcwd().
+# Absolute paths for messages: Windows prints full paths (`C:\t\a.txt`), and
+# Loup 1.26.0 has no getcwd().
+#
+# Runtime: host.dual. Compiled into the native binary build/del by
+# `make build`; `loup run source/main.loup` interprets the same code. When
+# $PWD does not list like `.`, current_dir() runs `pwd` through exec().
 
 from io.fs import (isDir, listDir);
 from win.paths import (fs_path, is_absolute_path, join_path, path_components);

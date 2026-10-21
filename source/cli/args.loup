@@ -1,7 +1,11 @@
 @mode(host.dual)
 
 # Command-line parsing for del, with the shared Windows switch parser
-# (win/switches.loup). A `/X` that is not one of del's switches is a path.
+# (win/switches.loup): `/P`, `/F`, `/S`, `/Q` and `/A[attrs]`. A `/X` that is
+# not one of del's switches is a path.
+#
+# Runtime: host.dual. Compiled into the native binary build/del by
+# `make build`; `loup run source/main.loup` interprets the same code.
 
 from win.messages import (msg_parameter_format);
 from win.switches import (SwitchSpec, flag, optional_value, parse_switches, switch_error_message);

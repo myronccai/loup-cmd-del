@@ -1,9 +1,20 @@
 @mode(host.dual)
 
 # del (and erase): deletes files. An operand is a file, a pattern, or a
-# directory (meaning every file in it); /S repeats it in every
-# subdirectory. Directories themselves are never deleted. Planning is pure;
-# run_del asks, deletes and prints.
+# directory (meaning every file in it); /S repeats it in every subdirectory.
+# Directories themselves are never deleted.
+#
+# Runtime: host.dual. Compiled into the native binary build/del by
+# `make build`; `loup run source/main.loup` interprets the same code. Natively
+# a failed `remove` is silent and Stage0 throws, so every deletion is checked
+# on disk. With /S, win.wildcard.walk_dirs runs `find` once per operand and
+# does not enter symbolic links to directories; read-only files are found with
+# `test -w` (Loup has no stat()).
+#
+# Structure: plan_target() turns an operand into a Target (a directory and a
+# pattern, or an error) without changing anything; find_files() lists the
+# files it names; delete_target() filters them by /A, asks, deletes and
+# prints; run_del() runs every operand.
 #
 # (The module is not called `del`: that is a reserved word in Loup.)
 
@@ -116,6 +127,8 @@ pub func msg_deleted(display: string): string {
 # Deletes what one operand names. Messages only: del's status is 0.
 func delete_target(t: Target, opts: Options, cwd: string): void {
     var files = find_files(t, opts.recurse);
+    # /A: only R (read-only) can be true on Linux, and asking costs one
+    # `test -w` per file, so files are only asked about when R is named.
     if (opts.attrs.len() > 0) {
         let check_ro = opts.attrs.index_of("R") >= 0;
         var kept: list[string] = [];
@@ -132,6 +145,8 @@ func delete_target(t: Target, opts: Options, cwd: string): void {
         printErr(msg_could_not_find(named));
         return;
     }
+    # A whole directory (`dir`, `*`, `*.*`) is confirmed once, before any
+    # file goes, unless /Q says not to ask or /P asks for each file anyway.
     if (t.everything and !opts.quiet and !opts.ask_each) {
         if (!ask_yes_no(sure_question(named))) {
             return;

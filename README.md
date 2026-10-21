@@ -131,6 +131,9 @@ be deleted (`Access is denied.`) are reported and the status stays `0`.
   is read-only.
 - No hidden, system or archive attributes: dot-files are ordinary files,
   and `/AH`, `/AS`, `/AA` find nothing.
+- `/S` does not search inside symbolic links to directories: links can
+  loop, and what they lead to may lie outside the tree. A matching link to
+  a file is deleted itself, not its target.
 - Answers are whole lines (Enter needed); cmd reacts to the key press. When
   standard input is not a terminal, the answer is echoed after the
   question.

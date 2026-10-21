@@ -1,7 +1,15 @@
 @mode(host.dual)
 
-# Entry point. Keep this file thin: all behaviour lives in cli.app.run so
-# that tests can call it with an argument list.
+# del: entry point of the Windows DEL (ERASE) command for Linux. Keep this
+# file thin: all behaviour lives in cli.app.run so that tests can call it with
+# an argument list.
+#
+# Runtime: host.dual. The entry point: main() gets the command line. The same
+# source runs two ways: `make run ARGS="..."` interprets it with
+# `loup run source/main.loup`, and `make build` compiles it with the rest of
+# source/ into the native binary build/del (plus build/erase, a symlink to
+# it), which `make e2e` (tests/e2e.sh) and CI run. Under `make run` a question
+# repeats forever (see commands/prompt.loup): use /Q and no /P there.
 
 from cli.app import (run);
 

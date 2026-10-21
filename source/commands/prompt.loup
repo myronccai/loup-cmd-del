@@ -1,9 +1,15 @@
 @mode(host.dual)
 
 # Yes/no questions (`X, Are you sure (Y/N)? `, `X, Delete (Y/N)? `). Loup
-# 1.26.0 can only read standard input whole, so each answer is read by a
-# `sh` child that inherits standard input: its `read` takes one line and
-# nothing more, from a pipe or from the terminal.
+# 1.26.0 can only read standard input whole, so each answer is read by a `sh`
+# child that inherits standard input: its `read` takes one line and nothing
+# more, from a pipe or from the terminal.
+#
+# Runtime: host.dual. Compiled into the native binary build/del by
+# `make build`, where the child inherits standard input; tests/e2e.sh answers
+# through a pipe. Under `make run` (the self-hosted `loup run`) the child's
+# `read` hands back an empty line, so a question is asked forever. The unit
+# tests cover only the pure parse_answer() and the question texts.
 
 pub const ANSWER_YES: int = 1;
 pub const ANSWER_NO: int = 2;
