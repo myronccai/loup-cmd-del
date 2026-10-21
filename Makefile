@@ -17,9 +17,13 @@ TEST_ARGS      ?=
 
 all: build
 
-# Run from source, e.g. `make run ARGS="/Q build/tmp/x.txt"`.
+# Run from source, e.g. `make run ARGS="/Q build/tmp/x.txt"`. This uses
+# Stage0's interpreter: under the self-hosted `loup run` the `sh -c '...'`
+# that reads the answer to `X, Are you sure (Y/N)?` gets an empty line back
+# every time, so the question repeats forever. Under Stage0 a child gets no
+# standard input, so every question is answered N: use /Q (and not /P).
 run:
-	$(LOUP) run source/main.loup -- $(ARGS)
+	$(LOUP_BOOTSTRAP) run source/main.loup -- $(ARGS)
 
 # Type-check source/main.loup and every module it imports.
 check:

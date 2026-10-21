@@ -5,11 +5,11 @@
 # an argument list.
 #
 # Runtime: host.dual. The entry point: main() gets the command line. The same
-# source runs two ways: `make run ARGS="..."` interprets it with
-# `loup run source/main.loup`, and `make build` compiles it with the rest of
-# source/ into the native binary build/del (plus build/erase, a symlink to
-# it), which `make e2e` (tests/e2e.sh) and CI run. Under `make run` a question
-# repeats forever (see commands/prompt.loup): use /Q and no /P there.
+# source runs two ways: `make build` compiles it with the rest of source/ into
+# the native binary build/del (plus build/erase, a symlink to it), which
+# `make e2e` (tests/e2e.sh) and CI run; `make run ARGS="..."` interprets it
+# with Stage0's `loup-bootstrap run source/main.loup`, not the self-hosted
+# `loup run` (the Makefile says why), and there every question is answered N.
 
 from cli.app import (run);
 

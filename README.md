@@ -71,7 +71,7 @@ license: <https://code-craft.ai/loup/license>.
 ```sh
 make build                     # native binary build/del, and build/erase (a symlink to it)
 make ci                        # check, unit tests, build, end-to-end tests
-make run ARGS="/Q build/tmp/x.txt"   # run from source with loup run
+make run ARGS="/Q build/tmp/x.txt"   # run from source (Stage0's interpreter)
 ```
 
 Quote operands that contain `\`, `*` or `?` so that the Linux shell passes
@@ -145,6 +145,10 @@ be deleted (`Access is denied.`) are reported and the status stays `0`.
   read-only) is also reported as `Access is denied.`
 - `/?` prints a short help text of this recreation, not Windows' own.
   Messages end with LF, not CRLF.
+- `make run` uses Stage0's interpreter (`loup-bootstrap run`), where a child
+  process gets no standard input: `X, Are you sure (Y/N)?` is answered N
+  there, so use `/Q`. Under the self-hosted `loup run` the question
+  would repeat forever.
 
 ## Layout
 

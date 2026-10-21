@@ -5,11 +5,11 @@
 # Directories themselves are never deleted.
 #
 # Runtime: host.dual. Compiled into the native binary build/del by
-# `make build`; `loup run source/main.loup` interprets the same code. Natively
-# a failed `remove` is silent and Stage0 throws, so every deletion is checked
-# on disk. With /S, win.wildcard.walk_dirs runs `find` once per operand and
-# does not enter symbolic links to directories; read-only files are found with
-# `test -w` (Loup has no stat()).
+# `make build`; `make run` (Stage0's `loup-bootstrap run`) interprets the same
+# code. Natively a failed `remove` is silent and Stage0 throws, so every
+# deletion is checked on disk. With /S, win.wildcard.walk_dirs runs `find`
+# once per operand and does not enter symbolic links to directories; read-only
+# files are found with `test -w` (Loup has no stat()).
 #
 # Structure: plan_target() turns an operand into a Target (a directory and a
 # pattern, or an error) without changing anything; find_files() lists the
@@ -126,19 +126,14 @@ pub func msg_deleted(display: string): string {
 
 # Deletes what one operand names. Messages only: del's status is 0.
 func delete_target(t: Target, opts: Options, cwd: string): void {
-    var files = find_files(t, opts.recurse);
+    # The type is spelled out on purpose: natively, a comprehension over an
+    # untyped `var` that holds a function's result segfaults (Loup 1.26.0).
+    var files: list[string] = find_files(t, opts.recurse);
     # /A: only R (read-only) can be true on Linux, and asking costs one
     # `test -w` per file, so files are only asked about when R is named.
     if (opts.attrs.len() > 0) {
         let check_ro = opts.attrs.index_of("R") >= 0;
-        var kept: list[string] = [];
-        for (f in files) {
-            let ro = if (check_ro) { is_read_only(f) } else { false };
-            if (attrs_match(opts.attrs, ro)) {
-                kept.push(f);
-            }
-        }
-        files = kept;
+        files = [f for f in files if attrs_match(opts.attrs, check_ro and is_read_only(f))];
     }
     let named = display_path(absolute_path(join_path(t.dir, t.pattern), cwd));
     if (files.len() == 0) {

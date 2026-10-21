@@ -4,8 +4,8 @@
 # the deletion and turns an uncaught exception into ERRORLEVEL 1.
 #
 # Runtime: host.dual. Compiled into the native binary build/del by
-# `make build`; `loup run source/main.loup` interprets the same code, and
-# tests/app_test.loup calls run() directly under Stage0.
+# `make build`; `make run` (Stage0's `loup-bootstrap run`) interprets the same
+# code, and tests/app_test.loup calls run() directly under Stage0.
 
 from appinfo import (EXIT_OK, EXIT_FAILURE);
 from cli.args import (parse_args);

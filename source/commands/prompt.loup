@@ -7,9 +7,11 @@
 #
 # Runtime: host.dual. Compiled into the native binary build/del by
 # `make build`, where the child inherits standard input; tests/e2e.sh answers
-# through a pipe. Under `make run` (the self-hosted `loup run`) the child's
-# `read` hands back an empty line, so a question is asked forever. The unit
-# tests cover only the pure parse_answer() and the question texts.
+# through a pipe. `make run` uses Stage0's `loup-bootstrap run`, whose
+# children get no standard input, so every answer is N there (under the
+# self-hosted `loup run` the child's `read` hands back an empty line, and a
+# question would repeat forever). The unit tests cover only the pure
+# parse_answer() and the question texts.
 
 pub const ANSWER_YES: int = 1;
 pub const ANSWER_NO: int = 2;
@@ -58,31 +60,23 @@ pub func delete_question(display: string): string {
 # reads as it would on screen.
 pub func ask_yes_no(question: string): bool {
     let echo_answer = !stdin_is_terminal();
-    while (true) {
+    var answer = ANSWER_INVALID;
+    do {
         print(question);
-        var text = "";
-        var at_end = false;
         match read_line() {
             Some(line) => {
-                text = line;
+                if (echo_answer) {
+                    println(line);
+                }
+                answer = parse_answer(line);
             },
             None => {
-                at_end = true;
+                if (echo_answer) {
+                    println("");
+                }
+                answer = ANSWER_NO;
             },
         }
-        if (at_end) {
-            if (echo_answer) {
-                println("");
-            }
-            return false;
-        }
-        if (echo_answer) {
-            println(text);
-        }
-        let answer = parse_answer(text);
-        if (answer != ANSWER_INVALID) {
-            return answer == ANSWER_YES;
-        }
-    }
-    return false;
+    } while (answer == ANSWER_INVALID);
+    return answer == ANSWER_YES;
 }
